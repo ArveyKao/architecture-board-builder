@@ -3,7 +3,17 @@
 画板是原生白板：导入 `.drawio` 后每个形状都可双击编辑。整条链路只有三步——
 **打开画板 → 清空旧内容（仅替换时）→ 导入 drawio**。
 
-## 0. 前置
+## 0. 先确认：画板还是图片
+
+画板导入会把图**压平成可编辑形状**：纯色填充、实线/虚线、文字、箭头。没有渐变、阴影、
+模糊、图片蒙版、复杂排版。如果你的表达依赖这些效果（或依赖多字体混排），
+就交付 PNG/SVG 而不是画板。
+
+- 深色风格：先铺一张覆盖全画布的底色矩形（`Board(..., theme="midnight")` 会自动做），
+  否则形状会漂在白底上。
+- 文档内嵌时画板按约 420px 宽显示：画布 1400–1800 宽、正文 ≥12px、主块 ≤7 个才读得清。
+
+## 0.1 前置
 
 ```bash
 SK=~/skills-manager/architecture-board-builder
@@ -48,7 +58,7 @@ t.dispatchEvent(new MouseEvent('dblclick', {bubbles:true, cancelable:true, clien
 
 ```js
 async () => {
-  const txt = await (await fetch('http://127.0.0.1:8766/order-platform.drawio')).text();
+  const txt = await (await fetch('http://127.0.0.1:8766/stacked-platform.drawio')).text();
   const inp = [...document.querySelectorAll('input[type=file]')]
     .find(i => (i.accept || '').includes('drawio'));
   if (!inp) return 'no input';

@@ -1,76 +1,90 @@
 ---
 name: architecture-board-builder
-description: Build bold, editable architecture and component-architecture boards as draw.io files, preview them locally, and import them into Feishu whiteboards. Use when asked to 画架构图 / 组件架构图 / 拓扑图 / 能力视图 / 平台图, to create or restyle a 飞书画板 (board) so it is 更醒目, or to regenerate such a diagram from a spec.
+description: Turn a system into a clear architecture diagram by choosing a visual language from its structure (layered, radial, tree, pipeline, states, matrix, anatomy…), then produce an editable draw.io file and import it as a native Feishu whiteboard. Use when asked to 画架构图 / 组件架构图 / 拓扑图 / 能力视图 / 归属图 / 状态图 / 演进图, to restyle a 飞书画板 or make a diagram clearer, or to regenerate one from a spec.
 ---
 
 # Architecture Board Builder
 
-## Overview
+## What this skill is for
 
-Turn a system story into a designed board — not a flowchart. The pipeline is:
-**spec → `boardkit` builder → lint → PNG preview → Feishu whiteboard import**.
-Every shape stays editable after import.
+Make the project legible. A diagram is a **model of a specific structure**, not a
+template with text poured into it. So the work starts by naming the structure and
+choosing the geometry that expresses it — layered bands, radial spokes, a tree, a
+pipeline, a state graph, a matrix — and only then drawing.
 
-Read [references/design-system.md](references/design-system.md) before laying out a
-new board, and [references/feishu-whiteboard.md](references/feishu-whiteboard.md)
-before touching a Feishu board.
+`boardkit` supplies geometry, text metrics, four colour themes, preview and lint.
+It deliberately imposes no layout.
 
 ## Workflow
 
-1. **Write the story before the shapes.** List the components, their 3–4
-   responsibilities, the 3–6 relationships that matter, and the *one* thing that
-   is the core of the system. If everything is equally important, the board will
-   have no focal point.
-2. **Assign zones.** Three numbered semantic layers (usually 入口 → 平台 → 执行),
-   one idea per zone. Put the core component in a single dark block inside the
-   middle zone.
-3. **Write a builder script.** Start from
-   [assets/examples/order_platform.py](assets/examples/order_platform.py); it
-   reproduces the reference design end to end. Keep coordinates literal — the
-   layout is the design.
-4. **Lint, then look.** Run `lint_board.py`, then render `preview.png` and
-   actually read the image. Fix text overflow, uneven gaps, arrows crossing
-   cards, and any second focal point.
-5. **Deliver.** Import into the target whiteboard; if replacing, select all and
-   delete first (import appends). Verify in the board *and* in the document
-   thumbnail after a reload.
-6. **Keep sources.** Leave the `.drawio`, `preview.png`, and builder script next
-   to the work; never treat an exported image as the backup.
+1. **Read the structure.** Before any coordinates, write three lines: the entities
+   (≤ 7 main blocks), each one's responsibility in ≤ 4 words, and the ≤ 6
+   relationships that matter. Then name the shape: *layered / radial / tree /
+   pipeline / state / matrix / anatomy / territory / timeline / comparison*.
+   If you cannot name it, the picture is not ready.
+2. **Choose encoding and register.** Pick one row from
+   [references/structure-to-style.md](references/structure-to-style.md), and one
+   register for the audience and medium (exec review, engineering deep-dive, doc
+   illustration, slide, status). Then commit to five decisions: ground, type
+   voice, line language, accent budget, density. Keep them for the whole board.
+3. **Decide the medium.** An editable Feishu board imports as flat shapes
+   (solid fills, strokes, text, arrows — no gradients or shadows); anything
+   richer is better delivered as PNG/SVG. Read
+   [references/feishu-whiteboard.md](references/feishu-whiteboard.md) before
+   touching a board.
+4. **Build.** Layout is literal in code; that is where the personality lives.
+   ```python
+   from boardkit import Board
+   b = Board(1600, 1000, theme="paper")        # token set, not a layout
+   t = b.t
+   b.group(80, 160, 1440, 600, title="Runtime")
+   b.node(120, 220, 260, 110, "Scheduler", sub="per-tenant queues", accent="primary")
+   b.arrow([(380, 275), (520, 275)], label="claim", color=t.acc("primary").base)
+   b.save("board.drawio")
+   ```
+   Primitives: `text`, `rect`, `line`, `ellipse`, `badge`, `node`, `group`,
+   `edge(straight=…)`, `arrow(label=…)`. Themes: `paper`, `slate`, `midnight`,
+   `mono` — they change tokens only.
+5. **Look at it.** Lint, render a PNG, and actually read the image. Run the
+   anti-template tests in `structure-to-style.md` and the checklist in
+   [references/craft.md](references/craft.md) §9. Iterate at least once; the
+   first render always has one weak spot.
+6. **Deliver and keep sources.** Import into the whiteboard (or export the PNG),
+   verify in the document, and keep `*.drawio` + preview + builder script.
 
 ## Quick start
 
 ```bash
 SK=~/skills-manager/architecture-board-builder
 mkdir -p /tmp/board && cd /tmp/board
-cp "$SK/assets/examples/order_platform.py" board.py
-python3 board.py                                    # -> order-platform.drawio
-python3 "$SK/scripts/lint_board.py" order-platform.drawio
-python3 "$SK/scripts/preview_svg.py" order-platform.drawio preview.html
-"$SK/scripts/shot.sh" preview.html preview.png 2100 2260 2
+cp "$SK/assets/examples/stacked_platform.py" board.py
+python3 board.py                                  # -> stacked-platform.drawio
+python3 "$SK/scripts/lint_board.py" stacked-platform.drawio
+python3 "$SK/scripts/preview_svg.py" stacked-platform.drawio preview.html
+"$SK/scripts/shot.sh" preview.html preview.png 1600 1000 2
 ```
 
-Then open `preview.png` and iterate. `shot.sh` uses headless Chrome; pass
-`CHROME=/path` if it is not in `/Applications`.
+## Three references, three languages
 
-## The rules that carry the look
+Do **not** reuse a sample layout by default; borrow the technique that fits.
 
-- **One dark block.** A single deep-navy focal card (`#0F2F6B`); everything else
-  light. Two dark blocks cancel each other out.
-- **Numbered zones.** `01 / 02 / 03` colored badges on tinted containers, each
-  with a 28px title and a 16px subtitle. This is the narrative spine.
-- **Fixed card anatomy.** Icon circle (single Chinese character), 24px title,
-  15px subtitle in the accent's dark tone, ≤ 4 bullets at 15px, optional bottom
-  pill showing where it hands off.
-- **Color = category.** Blue entry/router, teal legacy path, green skills,
-  violet knowledge/data, amber execution, slate resources. Max four accents.
-- **Arrows carry verbs.** 3px, colored, labeled in the gap (`检索上下文`,
-  `加载技能`); dashed means optional or planned. Never a bare 1px gray line.
-- **Type floor 13.** Nothing below 13px on a 2100-wide canvas; the document
-  thumbnail is ~5× smaller.
+| Sample | Structure | Register | Technique worth stealing |
+| --- | --- | --- | --- |
+| `assets/examples/stacked_platform.py` | four dependency layers | doc illustration (warm paper) | borderless strata, hairline rules, one tinted cell marking the hot path |
+| `assets/examples/hub_network.py` | one core + six channels | engineering deep-dive (dark) | straight radial spokes, dashed boundary rings, one hue per channel |
+| `assets/examples/tree_ownership.py` | ownership tree | minimal monochrome | type and rules only; the single red mark is spent on "unowned" |
 
-Full specs, spacing formulas and the three layout recipes (layered bands,
-hub-and-spoke, swimlane pipeline) live in
-[references/design-system.md](references/design-system.md).
+## Invariants (independent of style)
+
+- One dominant element. If two compete, the diagram has no point of view.
+- Colour encodes exactly one meaning per hue, and the palette stays ≤ 4 accents.
+- Body text ≥ 12px in a doc-embedded board (≥ 11px in a full-size export); text
+  never overlaps strokes or other text.
+- Prefer rearranging to crossing lines; a crossing usually means the encoding is
+  wrong.
+- The geometry alone should still convey the structure when all text is hidden.
+
+Details, numbers and failure modes: [references/craft.md](references/craft.md).
 
 ## Working from an existing board
 
@@ -83,14 +97,17 @@ hub-and-spoke, swimlane pipeline) live in
 - After import, zoom with `ctrl + wheel` and check wrapping; then leave the board
   and reload the document to confirm persistence.
 
+## If the content does not fit a picture
+
+A relationship count below three, a pure list, or data the reader must compute
+is better as prose, a table or a link. Say so instead of drawing a diagram that
+adds nothing.
+
 ## Resources
 
-- `scripts/boardkit.py` — primitives (`text`, `rect`, `card`, `section`, `pill`,
-  `badge`, `circle`, `edge`, `arrow`), palette, text measurement and `lint`.
-- `scripts/preview_svg.py` — draw.io → HTML/SVG preview with wrapping and
-  arrowheads.
-- `scripts/lint_board.py` — text overflow, font floor, off-canvas shapes.
-- `scripts/shot.sh` — headless Chrome screenshot at 1x/2x.
-- `scripts/serve_cors.py` — local CORS static server for the Feishu import step.
-- `assets/examples/order_platform.py` — reference builder (fictional order-fulfilment system).
-- `assets/examples/order-platform.drawio` + `preview.png` — reference output.
+- `scripts/boardkit.py` — primitives, four themes, text metrics, contrast-aware lint.
+- `scripts/preview_svg.py` — draw.io → HTML/SVG preview with wrapping and arrowheads.
+- `scripts/lint_board.py` — overflow, font floor, off-canvas, text/background contrast.
+- `scripts/shot.sh` — headless Chrome screenshot (1x/2x).
+- `scripts/serve_cors.py` — local CORS server for the Feishu import step.
+- `assets/examples/` — three builder scripts, their `.drawio` files and previews.
